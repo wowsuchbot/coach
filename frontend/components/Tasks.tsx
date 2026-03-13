@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { useRouter } from 'next/navigation';
 
-type TaskStatus = 'pending' | 'in-progress' | 'done';
+type TaskStatus = 'pending' | 'in_progress' | 'blocked' | 'done';
 
 interface Task {
   id: number;
   goal_id: number | null;
   title: string;
-  description: string;
+  description: string | null;
   priority: number;
   status: TaskStatus;
   created_at: string;
@@ -19,6 +20,7 @@ interface Task {
 }
 
 export function Tasks() {
+  const router = useRouter();
   const { isConnected } = useAccount();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,31 +73,17 @@ export function Tasks() {
     }
   };
 
-  const updateTaskStatus = async (taskId: number, newStatus: TaskStatus) => {
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (response.ok) {
-        fetchTasks();
-      }
-    } catch (error) {
-      console.error('Error updating task:', error);
-    }
-  };
-
   const statusColors: Record<TaskStatus, string> = {
     pending: 'bg-yellow-600',
-    'in-progress': 'bg-blue-600',
+    in_progress: 'bg-blue-600',
+    blocked: 'bg-red-600',
     done: 'bg-green-600',
   };
 
   const statusLabels: Record<TaskStatus, string> = {
     pending: 'Pending',
-    'in-progress': 'In Progress',
+    in_progress: 'In Progress',
+    blocked: 'Blocked',
     done: 'Done',
   };
 
@@ -202,7 +190,8 @@ export function Tasks() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4"
+              onClick={() => router.push(`/tasks/${task.id}`)}
+              className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800 cursor-pointer transition-colors"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -228,16 +217,10 @@ export function Tasks() {
               <div className="ml-4 flex items-center gap-2">
                 <div
                   className={`h-2 w-2 rounded-full ${statusColors[task.status]}`}
+                  title={statusLabels[task.status]}
                 />
-                <select
-                  value={task.status}
-                  onChange={(e) => updateTaskStatus(task.id, e.target.value as TaskStatus)}
-                  className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white"
-                >
-                  <option value="pending">{statusLabels.pending}</option>
-                  <option value="in-progress">{statusLabels['in-progress']}</option>
-                  <option value="done">{statusLabels.done}</option>
-                </select>
+                <span className="text-xs text-gray-400 capitalize">{task.status.replace('_', ' ')}</span>
+                <div className="ml-2 text-gray-500">→</div>
               </div>
             </div>
           ))}

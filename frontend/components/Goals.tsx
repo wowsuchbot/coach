@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { useRouter } from 'next/navigation';
 
 interface Goal {
   id: number;
@@ -15,13 +16,18 @@ interface Goal {
   target_date: string | null;
 }
 
-export function Goals() {
+interface GoalsProps {
+  categoryFilter?: string;
+}
+
+export function Goals({ categoryFilter }: GoalsProps) {
+  const router = useRouter();
   const { isConnected } = useAccount();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    category: '',
+    category: categoryFilter || '',
     title: '',
     description: '',
     priority: 1,
@@ -33,7 +39,10 @@ export function Goals() {
       const response = await fetch('/api/goals');
       if (response.ok) {
         const data = await response.json();
-        setGoals(data);
+        const filtered = categoryFilter 
+          ? data.filter((g: Goal) => g.category === categoryFilter)
+          : data;
+        setGoals(filtered);
       }
     } catch (error) {
       console.error('Error fetching goals:', error);
@@ -48,7 +57,7 @@ export function Goals() {
     } else {
       setLoading(false);
     }
-  }, [isConnected]);
+  }, [isConnected, categoryFilter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +70,7 @@ export function Goals() {
 
       if (response.ok) {
         setShowForm(false);
-        setFormData({ category: '', title: '', description: '', priority: 1, target_date: '' });
+        setFormData({ category: categoryFilter || '', title: '', description: '', priority: 1, target_date: '' });
         fetchGoals();
       }
     } catch (error) {
@@ -72,10 +81,14 @@ export function Goals() {
   const priorityLabels: Record<number, string> = { 1: 'high', 2: 'medium', 3: 'low' };
   const priorityColors: Record<number, string> = { 1: 'text-red-400', 2: 'text-yellow-400', 3: 'text-gray-400' };
 
+  const title = categoryFilter 
+    ? `${categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)} Goals`
+    : 'Active Goals';
+
   if (!isConnected) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6">
-        <h2 className="mb-4 text-xl font-semibold text-white">Active Goals</h2>
+        <h2 className="mb-4 text-xl font-semibold text-white">{title}</h2>
         <p className="text-gray-400">Connect your wallet to view your goals</p>
       </div>
     );
@@ -84,7 +97,7 @@ export function Goals() {
   return (
     <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Active Goals</h2>
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -172,7 +185,8 @@ export function Goals() {
           {goals.map((goal) => (
             <div
               key={goal.id}
-              className="rounded-lg border border-gray-800 bg-gray-900 p-4"
+              onClick={() => router.push(`/goals/${goal.id}`)}
+              className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800 cursor-pointer transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -197,6 +211,7 @@ export function Goals() {
                     )}
                   </div>
                 </div>
+                <div className="ml-4 text-gray-500">→</div>
               </div>
             </div>
           ))}
