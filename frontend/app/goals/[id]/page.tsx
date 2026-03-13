@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
+import { Autocomplete } from '@/components/Autocomplete';
 
 interface Goal {
   id: number;
@@ -14,6 +15,7 @@ interface Goal {
   created_at: string;
   updated_at: string;
   target_date: string | null;
+  parent_goal_id: number | null;
 }
 
 interface Task {
@@ -181,6 +183,24 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
                     <option value="paused">Paused</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Target Date</label>
+                <input
+                  type="date"
+                  value={formData.target_date || ''}
+                  onChange={(e) => setFormData({ ...formData, target_date: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Parent Goal (optional)</label>
+                <Autocomplete
+                  value={formData.parent_goal_id || null}
+                  onChange={(value) => setFormData({ ...formData, parent_goal_id: value })}
+                  placeholder="Search for parent goal..."
+                  endpoint="/api/goals"
+                />
               </div>
               <div className="flex gap-3">
                 <button

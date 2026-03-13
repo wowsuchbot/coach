@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import Database from 'better-sqlite3';
+
+function getDb() {
+  return new Database('/root/.openclaw/workspace-conductor/memory/coach.db');
+}
 
 export async function GET() {
   try {
@@ -14,7 +18,8 @@ export async function GET() {
         status,
         created_at,
         updated_at,
-        target_date
+        target_date,
+        parent_goal_id
       FROM goals
       WHERE status = 'active'
       ORDER BY priority DESC, created_at DESC
@@ -33,13 +38,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { category, title, description, priority, target_date } = body;
+    const { category, title, description, priority, target_date, parent_goal_id } = body;
 
     const db = getDb();
     const result = db.prepare(`
-      INSERT INTO goals (category, title, description, priority, status, target_date)
-      VALUES (?, ?, ?, ?, 'active', ?)
-    `).run(category, title, description, priority || 1, target_date);
+      INSERT INTO goals (category, title, description, priority, status, target_date, parent_goal_id)
+      VALUES (?, ?, ?, ?, 'active', ?, ?)
+    `).run(category, title, description, priority || 1, target_date, parent_goal_id || null);
 
     const newGoal = db.prepare('SELECT * FROM goals WHERE id = ?').get(result.lastInsertRowid);
 

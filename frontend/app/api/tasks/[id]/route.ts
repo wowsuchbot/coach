@@ -11,9 +11,10 @@ export async function GET(
     const db = getDb();
     
     const task = db.prepare(`
-      SELECT t.*, g.title as goal_title 
-      FROM tasks t 
-      LEFT JOIN goals g ON t.goal_id = g.id 
+      SELECT t.*, g.title as goal_title, p.title as project_title
+      FROM tasks t
+      LEFT JOIN goals g ON t.goal_id = g.id
+      LEFT JOIN goals p ON t.project_id = p.id
       WHERE t.id = ?
     `).get(id);
 
@@ -36,7 +37,7 @@ export async function PUT(
     const { id: idStr } = await params;
     const id = parseInt(idStr);
     const body = await request.json();
-    const { title, description, priority, status, due_date } = body;
+    const { title, description, priority, status, due_date, goal_id, project_id } = body;
 
     const db = getDb();
 
@@ -66,6 +67,14 @@ export async function PUT(
       updates.push('due_date = ?');
       values.push(due_date);
     }
+    if (goal_id !== undefined) {
+      updates.push('goal_id = ?');
+      values.push(goal_id);
+    }
+    if (project_id !== undefined) {
+      updates.push('project_id = ?');
+      values.push(project_id);
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
@@ -76,7 +85,13 @@ export async function PUT(
     const query = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
     db.prepare(query).run(...values);
 
-    const updatedTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+    const updatedTask = db.prepare(`
+      SELECT t.*, g.title as goal_title, p.title as project_title
+      FROM tasks t
+      LEFT JOIN goals g ON t.goal_id = g.id
+      LEFT JOIN goals p ON t.project_id = p.id
+      WHERE t.id = ?
+    `).get(id);
 
     return NextResponse.json(updatedTask);
   } catch (error) {

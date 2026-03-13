@@ -8,6 +8,7 @@ export async function GET() {
       SELECT
         t.id,
         t.goal_id,
+        t.project_id,
         t.title,
         t.description,
         t.status,
@@ -15,10 +16,12 @@ export async function GET() {
         t.created_at,
         t.due_date,
         t.completed_at,
-        g.title as goal_title
+        g.title as goal_title,
+        p.title as project_title
       FROM tasks t
       LEFT JOIN goals g ON t.goal_id = g.id
-      WHERE t.status IN ('pending', 'in-progress')
+      LEFT JOIN goals p ON t.project_id = p.id
+      WHERE t.status IN ('pending', 'in_progress', 'blocked')
       ORDER BY
         CASE t.priority
           WHEN 1 THEN 3
@@ -41,13 +44,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { goal_id, title, description, priority, due_date } = body;
+    const { goal_id, project_id, title, description, priority, due_date } = body;
 
     const db = getDb();
     const result = db.prepare(`
-      INSERT INTO tasks (goal_id, title, description, status, priority, due_date)
-      VALUES (?, ?, ?, 'pending', ?, ?)
-    `).run(goal_id || null, title, description, priority || 2, due_date);
+      INSERT INTO tasks (goal_id, project_id, title, description, status, priority, due_date)
+      VALUES (?, ?, ?, ?, 'pending', ?, ?)
+    `).run(goal_id || null, project_id || null, title, description, priority || 2, due_date);
 
     const newTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
 
