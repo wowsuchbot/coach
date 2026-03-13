@@ -93,8 +93,32 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
 
   if (!goal) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-xl">Goal not found</div>
+      <div className="min-h-screen bg-black text-white">
+        <Navbar />
+        <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+          <button
+            onClick={() => router.back()}
+            className="mb-6 text-gray-400 hover:text-white flex items-center gap-2"
+          >
+            <span>←</span>
+            <span>Back</span>
+          </button>
+          <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
+            <h1 className="text-2xl font-bold mb-4">Goal Not Found</h1>
+            <p className="text-gray-400 mb-4">
+              This goal may have been deleted or doesn't exist.
+            </p>
+            <p className="text-sm text-gray-500">
+              Goal ID: {params.id}
+            </p>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="mt-6 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </main>
       </div>
     );
   }

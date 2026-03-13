@@ -191,14 +191,16 @@ export function Goals({ categoryFilter }: GoalsProps) {
           {goals.map((goal) => (
             <div
               key={goal.id}
-              onClick={() => router.push(`/goals/${goal.id}`)}
-              className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800 cursor-pointer transition-colors"
+              className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800 transition-colors"
             >
               <div className="flex items-start justify-between">
-                <div className="flex-1">
+                <div 
+                  className="flex-1 cursor-pointer"
+                  onClick={() => router.push(`/goals/${goal.id}`)}
+                >
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
-                      {goal.category}
+                      {goal.category || 'uncategorized'}
                     </span>
                     <span className={`text-xs uppercase ${priorityColors[goal.priority]}`}>
                       {priorityLabels[goal.priority]}
@@ -217,7 +219,63 @@ export function Goals({ categoryFilter }: GoalsProps) {
                     )}
                   </div>
                 </div>
-                <div className="ml-4 text-gray-500">→</div>
+                <div className="ml-4 text-gray-500 flex flex-col gap-2 items-end">
+                  <button
+                    onClick={() => router.push(`/goals/${goal.id}`)}
+                    className="text-blue-400 hover:text-blue-300 text-sm"
+                  >
+                    View →
+                  </button>
+                  {!categoryFilter && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await fetch(`/api/goals/${goal.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ category: 'projects' }),
+                          });
+                          fetchGoals();
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-purple-900/30 text-purple-300 hover:bg-purple-800"
+                        title="Move to Projects"
+                      >
+                        📁
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await fetch(`/api/goals/${goal.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ category: 'personal' }),
+                          });
+                          fetchGoals();
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-green-900/30 text-green-300 hover:bg-green-800"
+                        title="Move to Personal"
+                      >
+                        🎯
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await fetch(`/api/goals/${goal.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ category: 'timebound' }),
+                          });
+                          fetchGoals();
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-orange-900/30 text-orange-300 hover:bg-orange-800"
+                        title="Move to Time-Bound"
+                      >
+                        ⏰
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
