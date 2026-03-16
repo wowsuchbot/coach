@@ -3,6 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/Toast';
+import { AuthGuard } from '@/components/AuthGuard';
+import { EmptyState } from '@/components/EmptyState';
+import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
+import { useFormState } from '@/hooks/useFormState';
+import { Plus, Clock, CheckSquare } from 'lucide-react';
+import { button, input, card } from '@/lib/design-tokens';
 
 type TaskStatus = 'pending' | 'in_progress' | 'blocked' | 'done';
 
@@ -22,14 +29,29 @@ interface Task {
 export function Tasks() {
   const router = useRouter();
   const { isConnected } = useAccount();
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
+
+  const {
+    formData,
+    updateField,
+    handleSubmit,
+    isSubmitting,
+    errors,
+  } = useFormState({
     title: '',
     description: '',
     priority: 2,
     due_date: ''
+  }, {
+    validate: (data) => {
+      const errs: Record<string, string> = {};
+      if (!data.title.trim()) errs.title = 'Title is required';
+      if (data.title.length > 100) errs.title = 'Title must be 100 characters or less';
+      return errs;
+    }
   });
 
   const fetchTasks = async () => {
@@ -41,6 +63,7 @@ export function Tasks() {
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      showToast('Failed to load tasks', 'error');
     } finally {
       setLoading(false);
     }
@@ -54,103 +77,98 @@ export function Tasks() {
     }
   }, [isConnected]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+  const onSubmit = async (data: typeof formData) => {
+    const response = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
 
-      if (response.ok) {
-        setShowForm(false);
-        setFormData({ title: '', description: '', priority: 2, due_date: '' });
-        fetchTasks();
-      }
-    } catch (error) {
-      console.error('Error creating task:', error);
+    if (!response.ok) throw new Error('Failed to create task');
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await handleSubmit(onSubmit, () => {
+      setShowForm(false);
+      fetchTasks();
+      showToast('Task created successfully', 'success');
+    });
+    if (!success && errors._form) {
+      showToast(errors._form, 'error');
     }
   };
 
-  const statusColors: Record<TaskStatus, string> = {
-    pending: 'bg-yellow-600',
-    in_progress: 'bg-blue-600',
-    blocked: 'bg-red-600',
-    done: 'bg-green-600',
-  };
-
-  const statusLabels: Record<TaskStatus, string> = {
-    pending: 'Pending',
-    in_progress: 'In Progress',
-    blocked: 'Blocked',
-    done: 'Done',
-  };
-
-  const priorityColors: Record<number, string> = {
-    1: 'text-red-400',
-    2: 'text-yellow-400',
-    3: 'text-gray-400',
-  };
-
-  const priorityLabels: Record<number, string> = {
-    1: 'high',
-    2: 'medium',
-    3: 'low',
-  };
-
-  if (!isConnected) {
-    return (
-      <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6">
-        <h2 className="mb-4 text-xl font-semibold text-white">Pending Tasks</h2>
-        <p className="text-gray-400">Connect your wallet to view your tasks</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6">
+    <section className={card.base} aria-labelledby="tasks-heading">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Pending Tasks</h2>
+        <h2 id="tasks-heading" className="text-xl font-semibold text-white">Pending Tasks</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          aria-expanded={showForm}
+          aria-controls="task-form"
+          aria-label={showForm ? 'Cancel adding task' : 'Add new task'}
+          className={`${button.primary} flex items-center gap-2`}
         >
-          {showForm ? 'Cancel' : '+ Add Task'}
+          {showForm ? 'Cancel' : (
+            <>
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Add Task
+            </>
+          )}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <form 
+          id="task-form"
+          onSubmit={handleFormSubmit} 
+          className="mb-6 rounded-lg border border-gray-800 bg-gray-900 p-4"
+          aria-label="Create new task"
+        >
           <div className="grid gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Title</label>
+              <label htmlFor="task-title" className="mb-1 block text-sm font-medium text-gray-300">
+                Title <span className="text-red-400">*</span>
+              </label>
               <input
+                id="task-title"
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                onChange={(e) => updateField('title', e.target.value)}
+                className={`${input.base} ${errors.title ? input.error : ''}`}
                 placeholder="Task title"
                 required
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? 'title-error' : undefined}
               />
+              {errors.title && (
+                <p id="title-error" className="mt-1 text-sm text-red-400">{errors.title}</p>
+              )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-300">Description</label>
+              <label htmlFor="task-description" className="mb-1 block text-sm font-medium text-gray-300">
+                Description
+              </label>
               <textarea
+                id="task-description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                onChange={(e) => updateField('description', e.target.value)}
+                className={input.base}
                 rows={3}
                 placeholder="Describe your task"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-300">Priority</label>
+                <label htmlFor="task-priority" className="mb-1 block text-sm font-medium text-gray-300">
+                  Priority
+                </label>
                 <select
+                  id="task-priority"
                   value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                  onChange={(e) => updateField('priority', parseInt(e.target.value))}
+                  className={input.base}
                 >
                   <option value={1}>High</option>
                   <option value={2}>Medium</option>
@@ -158,12 +176,15 @@ export function Tasks() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-300">Due Date</label>
+                <label htmlFor="task-due-date" className="mb-1 block text-sm font-medium text-gray-300">
+                  Due Date
+                </label>
                 <input
+                  id="task-due-date"
                   type="date"
                   value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white"
+                  onChange={(e) => updateField('due_date', e.target.value)}
+                  className={input.base}
                 />
               </div>
             </div>
@@ -171,61 +192,75 @@ export function Tasks() {
           <div className="mt-4 flex justify-end">
             <button
               type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              disabled={isSubmitting}
+              className={button.primary}
             >
-              Create Task
+              {isSubmitting ? 'Creating...' : 'Create Task'}
             </button>
           </div>
         </form>
       )}
 
-      {loading ? (
-        <div className="text-center text-gray-400">Loading tasks...</div>
-      ) : tasks.length === 0 ? (
-        <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-          <p className="text-gray-400">No pending tasks. Add a task to get started!</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              onClick={() => router.push(`/tasks/${task.id}`)}
-              className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800 cursor-pointer transition-colors"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-white">{task.title}</span>
-                  {task.goal_title && (
-                    <span className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
-                      {task.goal_title}
-                    </span>
-                  )}
-                  <span className={`text-xs uppercase ${priorityColors[task.priority]}`}>
-                    {priorityLabels[task.priority]}
-                  </span>
-                </div>
-                {task.description && (
-                  <p className="mt-1 text-sm text-gray-400">{task.description}</p>
-                )}
-                {task.due_date && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Due: {new Date(task.due_date).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-              <div className="ml-4 flex items-center gap-2">
-                <div
-                  className={`h-2 w-2 rounded-full ${statusColors[task.status]}`}
-                  title={statusLabels[task.status]}
-                />
-                <span className="text-xs text-gray-400 capitalize">{task.status.replace('_', ' ')}</span>
-                <div className="ml-2 text-gray-500">→</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      <AuthGuard
+        loading={<div className="text-center text-gray-400">Loading...</div>}
+        fallback={<p className="text-gray-400">Connect your wallet to view your tasks</p>}
+      >
+        {loading ? (
+          <div className="text-center text-gray-400" role="status" aria-live="polite">
+            Loading tasks...
+          </div>
+        ) : tasks.length === 0 ? (
+          <EmptyState
+            icon={<CheckSquare className="w-8 h-8 text-gray-500" />}
+            title="No pending tasks"
+            description="Add a task to get started! Tasks help you break down your goals into actionable steps."
+            action={{
+              label: 'Create your first task',
+              onClick: () => setShowForm(true),
+            }}
+          />
+        ) : (
+          <ul className="space-y-3" role="list" aria-label="Tasks list">
+            {tasks.map((task) => (
+              <li key={task.id}>
+                <article
+                  onClick={() => router.push(`/tasks/${task.id}`)}
+                  onKeyDown={(e) => e.key === 'Enter' && router.push(`/tasks/${task.id}`)}
+                  className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800 cursor-pointer transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Task: ${task.title}, Status: ${task.status.replace('_', ' ')}, Priority: ${task.priority === 1 ? 'high' : task.priority === 2 ? 'medium' : 'low'}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-white truncate">{task.title}</span>
+                      {task.goal_title && (
+                        <span className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300 flex-shrink-0">
+                          {task.goal_title}
+                        </span>
+                      )}
+                      <PriorityBadge priority={task.priority} />
+                    </div>
+                    {task.description && (
+                      <p className="mt-1 text-sm text-gray-400 truncate">{task.description}</p>
+                    )}
+                    {task.due_date && (
+                      <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" aria-hidden="true" />
+                        Due: {new Date(task.due_date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="ml-4 flex items-center gap-2 flex-shrink-0">
+                    <StatusBadge status={task.status} />
+                    <span className="text-gray-500" aria-hidden="true">→</span>
+                  </div>
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
+      </AuthGuard>
+    </section>
   );
 }
