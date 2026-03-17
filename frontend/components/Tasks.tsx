@@ -26,7 +26,12 @@ interface Task {
   goal_title: string | null;
 }
 
-export function Tasks() {
+interface TasksProps {
+  limit?: number;
+  domainFilter?: number;
+}
+
+export function Tasks({ limit, domainFilter }: TasksProps = {}) {
   const router = useRouter();
   const { isConnected } = useAccount();
   const { showToast } = useToast();
@@ -59,7 +64,14 @@ export function Tasks() {
       const response = await fetch('/api/tasks');
       if (response.ok) {
         const data = await response.json();
-        setTasks(data);
+        let filtered = data;
+        if (domainFilter) {
+          filtered = data.filter((t: Task) => t.goal_id === domainFilter);
+        }
+        if (limit) {
+          filtered = filtered.slice(0, limit);
+        }
+        setTasks(filtered);
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -75,7 +87,7 @@ export function Tasks() {
     } else {
       setLoading(false);
     }
-  }, [isConnected]);
+  }, [isConnected, domainFilter]);
 
   const onSubmit = async (data: typeof formData) => {
     const response = await fetch('/api/tasks', {

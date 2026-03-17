@@ -33,7 +33,7 @@ export function StatusBadge({ status, showLabel = true, size = 'sm' }: StatusBad
   const dotSize = size === 'sm' ? 'h-2 w-2' : 'h-3 w-3';
 
   return (
-    <span 
+    <span
       className="flex items-center gap-1.5"
       role="status"
       aria-label={`Status: ${config.label}`}
@@ -54,7 +54,7 @@ export function PriorityBadge({ priority, showLabel = true, size = 'sm' }: Prior
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
 
   return (
-    <span 
+    <span
       className={`inline-flex items-center ${textSize} uppercase ${config.color}`}
       aria-label={`Priority: ${config.label}`}
     >

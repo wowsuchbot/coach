@@ -19,7 +19,8 @@ export async function GET() {
         created_at,
         updated_at,
         target_date,
-        parent_goal_id
+        parent_goal_id,
+        type
       FROM goals
       WHERE status = 'active'
       ORDER BY priority DESC, created_at DESC
@@ -38,13 +39,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { category, title, description, priority, target_date, parent_goal_id } = body;
+    const { category, title, description, priority, target_date, parent_goal_id, type } = body;
 
     const db = getDb();
     const result = db.prepare(`
-      INSERT INTO goals (category, title, description, priority, status, target_date, parent_goal_id)
-      VALUES (?, ?, ?, ?, 'active', ?, ?)
-    `).run(category, title, description, priority || 1, target_date, parent_goal_id || null);
+      INSERT INTO goals (category, title, description, priority, status, target_date, parent_goal_id, type)
+      VALUES (?, ?, ?, ?, 'active', ?, ?, ?)
+    `).run(category, title, description, priority || 1, target_date, parent_goal_id || null, type || 'project');
 
     const newGoal = db.prepare('SELECT * FROM goals WHERE id = ?').get(result.lastInsertRowid);
 

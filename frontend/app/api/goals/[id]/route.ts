@@ -28,14 +28,14 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { category, title, description, priority, status, target_date, parent_goal_id } = body;
+    const { category, title, description, priority, status, target_date, parent_goal_id, type } = body;
 
     const db = getDb();
     db.prepare(`
       UPDATE goals
-      SET category = ?, title = ?, description = ?, priority = ?, status = ?, target_date = ?, parent_goal_id = ?, updated_at = CURRENT_TIMESTAMP
+      SET category = ?, title = ?, description = ?, priority = ?, status = ?, target_date = ?, parent_goal_id = ?, type = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(category, title, description, priority, status, target_date, parent_goal_id || null, id);
+    `).run(category, title, description, priority, status, target_date, parent_goal_id || null, type, id);
 
     const updated = db.prepare('SELECT * FROM goals WHERE id = ?').get(id);
     return NextResponse.json(updated);
